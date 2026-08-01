@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Générateur de Carte Anime Ultra Pro</title>
+  <style>
+    :root {
+      --bg-color: #0b0c10;
+      --panel-bg: #1f2833;
+      --accent: #ff2a5f;
+      --rarity-color: #a0a0a0; /* Couleur par défaut (SR) */
+      --rarity-glow: rgba(160, 160, 160, 0.4);
+      --element-color: #00f0ff;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background-color: var(--bg-color);
+      color: #fff;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 30px;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    /* Panneau de configuration */
+    .controls {
+      background: var(--panel-bg);
+      padding: 25px;
+      border-radius: 16px;
+      width: 100%;
+      max-width: 400px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    }
+
+    .controls h2 { margin-bottom: 20px; color: var(--accent); font-size: 1.4rem; }
+    .form-group { margin-bottom: 12px; }
+    label { display: block; margin-bottom: 4px; font-size: 0.85rem; color: #c5c6c7; }
+
+    input[type="text"], select, input[type="file"] {
+      width: 100%;
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid #45a29e;
+      background: #0b0c10;
+      color: #fff;
+      font-size: 0.9rem;
+    }
+
+    .slider-group {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    input[type="range"] { flex: 1; }
+
+    .btn-group {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-top: 15px;
+    }
+
+    .btn {
+      width: 100%;
+      padding: 12px;
+      border: none;
+      color: white;
+      font-weight: bold;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.95rem;
+      transition: all 0.2s;
+    }
+
+    .btn-download {
+      background: linear-gradient(45deg, var(--accent), #ff758c);
+      box-shadow: 0 4px 15px rgba(255, 42, 95, 0.3);
+    }
+
+    .btn-share {
+      background: linear-gradient(45deg, #00b4db, #0083b0);
+      box-shadow: 0 4px 15px rgba(0, 180, 219, 0.3);
+    }
+
+    .btn:hover { transform: translateY(-2px); }
+
+    /* --- CARTE AVEC RARETÉ DYNAMIQUE --- */
+    .card-wrapper {
+      perspective: 1000px;
+    }
+
+    .card-preview {
+      width: 330px;
+      height: 520px;
+      background: linear-gradient(135deg, #121212 0%, #1a1c23 100%);
+      border-radius: 20px;
+      padding: 16px;
+      position: relative;
+      border: 3px solid var(--rarity-color);
+      box-shadow: 0 0 25px var(--rarity-glow), inset 0 0 15px var(--rarity-glow);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      overflow: hidden;
+      transition: border 0.4s, box-shadow 0.4s;
+    }
+
+    /* Effet Holographique */
+    .card-preview::before {
+      content: "";
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: linear-gradient(
+        115deg,
+        transparent 20%,
+        rgba(255, 255, 255, 0.15) 40%,
+        rgba(255, 0, 128, 0.15) 45%,
+        rgba(0, 240, 255, 0.15) 50%,
+        transparent 60%
+      );
+      transform: rotate(25deg);
+      pointer-events: none;
+      animation: holoShine 6s infinite linear;
+    }
+
+    @keyframes holoShine {
+      0% { transform: translateY(-30%) rotate(25deg); }
+      100% { transform: translateY(30%) rotate(25deg); }
+    }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      z-index: 2;
+    }
+
+    .card-name {
+      font-size: 1.3rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      text-shadow: 0 0 8px rgba(255, 255, 255, 0.6);
+    }
+
+    .card-element {
+      font-size: 0.75rem;
+      color: var(--element-color);
+      font-weight: bold;
+      text-transform: uppercase;
+    }
+
+    .card-rarity {
+      background: var(--rarity-color);
+      color: #000;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-weight: 900;
+      font-size: 0.85rem;
+      box-shadow: 0 0 10px var(--rarity-glow);
+      transition: background 0.4s;
+    }
+
+    .card-avatar-container {
+      width: 100%;
+      height: 230px;
+      background: #08080a;
+      border-radius: 12px;
+      border: 2px solid rgba(255, 255, 255, 0.15);
+      overflow: hidden;
+      position: relative;
+      z-index: 2;
+    }
+
+    .card-avatar {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .avatar-placeholder {
+      display: flex;
+      height: 100%;
+      align-items: center;
+      justify-content: center;
+      color: #666;
+      font-size: 0.9rem;
+    }
+
+    .card-stats {
+      background: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(5px);
+      padding: 12px;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      z-index: 2;
+    }
+
+    .stat-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.8rem;
+      margin-bottom: 4px;
+      font-weight: bold;
+    }
+
+    .stat-bar-bg {
+      height: 6px;
+      background: #222;
+      border-radius: 3px;
+      overflow: hidden;
+      margin-bottom: 8px;
+    }
+
+    .stat-fill {
+      height: 100%;
+      border-radius: 3px;
+      transition: width 0.3s;
+    }
+
+    .fill-atk { background: linear-gradient(90deg, #ff416c, #ff4b2b); }
+    .fill-def { background: linear-gradient(90deg, #11998e, #38ef7d); }
+    .fill-spd { background: linear-gradient(90deg, #2193b0, #6dd5ed); }
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+</head>
+<body>
+
+  <!-- Menu d'édition -->
+  <div class="controls">
+    <h2>⚙️ Éditeur de Carte</h2>
+
+    <div class="form-group">
+      <label>Image du Personnage</label>
+      <input type="file" id="inputImage" accept="image/*" onchange="previewImage(event)">
+    </div>
+
+    <div class="form-group">
+      <label>Nom du Personnage</label>
+      <input type="text" id="inputName" value="Noah" oninput="updateCard()">
+    </div>
+
+    <div class="form-group">
+      <label>Élément / Pouvoir</label>
+      <select id="inputElement" onchange="updateCard()">
+        <option value="🔥 Feu / Flame">Feu</option>
+        <option value="⚡ Éclair / Lightning" selected>Éclair</option>
+        <option value="🌑 Ombre / Shadow">Ombre</option>
+        <option value="🌊 Eau / Water">Eau</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label>Rareté</label>
+      <select id="inputRarity" onchange="updateCard()">
+        <option value="SR">SR (Argent)</option>
+        <option value="SSR">SSR (Or)</option>
+        <option value="UR" selected>UR (Néon Violet)</option>
+        <option value="LR">LR (Cosmique)</option>
+      </select>
+    </div>
+
+    <!-- Sliders de stats -->
+    <div class="form-group">
+      <label>Attaque (ATK)</label>
+      <div class="slider-group">
+        <input type="range" id="inputAtk" min="10" max="100" value="90" oninput="updateCard()">
+        <span id="valAtk" style="font-size:0.8rem">90</span>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>Défense (DEF)</label>
+      <div class="slider-group">
+        <input type="range" id="inputDef" min="10" max="100" value="75" oninput="updateCard()">
+        <span id="valDef" style="font-size:0.8rem">75</span>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>Vitesse (SPD)</label>
+      <div class="slider-group">
+        <input type="range" id="inputSpd" min="10" max="100" value="85" oninput="updateCard()">
+        <span id="valSpd" style="font-size:0.8rem">85</span>
+      </div>
+    </div>
+
+    <div class="btn-group">
+      <button class="btn btn-download" onclick="downloadCard()">📸 Télécharger la Carte (PNG)</button>
+      <button class="btn btn-share" onclick="shareCard()">📲 Partager la Carte</button>
+    </div>
+  </div>
+
+  <!-- Rendu de la Carte -->
+  <div class="card-wrapper">
+    <div class="card-preview" id="myCard">
+      
+      <div class="card-header">
+        <div>
+          <div class="card-name" id="cardName">Noah</div>
+          <div class="card-element" id="cardElement">⚡ Éclair / Lightning</div>
+        </div>
+        <div class="card-rarity" id="cardRarity">UR</div>
+      </div>
+
+      <div class="card-avatar-container">
+        <div class="avatar-placeholder" id="placeholderText">Importe une image 🖼️</div>
+        <img id="cardImage" class="card-avatar" style="display: none;" alt="Avatar">
+      </div>
+
+      <div class="card-stats">
+        <!-- ATK -->
+        <div class="stat-row"><span>ATK</span><span id="numAtk">90</span></div>
+        <div class="stat-bar-bg"><div class="stat-fill fill-atk" id="barAtk" style="width: 90%;"></div></div>
+        
+        <!-- DEF -->
+        <div class="stat-row"><span>DEF</span><span id="numDef">75</span></div>
+        <div class="stat-bar-bg"><div class="stat-fill fill-def" id="barDef" style="width: 75%;"></div></div>
+
+        <!-- SPD -->
+        <div class="stat-row"><span>SPD</span><span id="numSpd">85</span></div>
+        <div class="stat-bar-bg"><div class="stat-fill fill-spd" id="barSpd" style="width: 85%;"></div></div>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    // Thèmes de couleurs selon la Rareté
+    const rarityThemes = {
+      'SR': { color: '#c0c0c0', glow: 'rgba(192, 192, 192, 0.5)' },
+      'SSR': { color: '#ffd700', glow: 'rgba(255, 215, 0, 0.6)' },
+      'UR': { color: '#d000ff', glow: 'rgba(208, 0, 255, 0.7)' },
+      'LR': { color: '#ff2a2a', glow: 'rgba(255, 42, 42, 0.8)' }
+    };
+
+    function updateCard() {
+      document.getElementById('cardName').innerText = document.getElementById('inputName').value || 'Héros';
+      document.getElementById('cardElement').innerText = document.getElementById('inputElement').value;
+
+      // Gestion de la rareté et des couleurs
+      const rarity = document.getElementById('inputRarity').value;
+      document.getElementById('cardRarity').innerText = rarity;
+      
+      const theme = rarityThemes[rarity] || rarityThemes['SR'];
+      document.documentElement.style.setProperty('--rarity-color', theme.color);
+      document.documentElement.style.setProperty('--rarity-glow', theme.glow);
+
+      // Stats
+      const atk = document.getElementById('inputAtk').value;
+      const def = document.getElementById('inputDef').value;
+      const spd = document.getElementById('inputSpd').value;
+
+      document.getElementById('valAtk').innerText = atk;
+      document.getElementById('numAtk').innerText = atk;
+      document.getElementById('barAtk').style.width = atk + '%';
+
+      document.getElementById('valDef').innerText = def;
+      document.getElementById('numDef').innerText = def;
+      document.getElementById('barDef').style.width = def + '%';
+
+      document.getElementById('valSpd').innerText = spd;
+      document.getElementById('numSpd').innerText = spd;
+      document.getElementById('barSpd').style.width = spd + '%';
+    }
+
+    function previewImage(event) {
+      const reader = new FileReader();
+      reader.onload = function() {
+        const output = document.getElementById('cardImage');
+        output.src = reader.result;
+        output.style.display = 'block';
+        document.getElementById('placeholderText').style.display = 'none';
+      };
+      if (event.target.files[0]) {
+        reader.readAsDataURL(event.target.files[0]);
+      }
+    }
+
+    // Génère le blob HD de la carte
+    function generateCardCanvas() {
+      const card = document.getElementById('myCard');
+      return html2canvas(card, { scale: 2, useCORS: true });
+    }
+
+    // Télécharger sous forme d'image PNG
+    function downloadCard() {
+      generateCardCanvas().then(canvas => {
+        const link = document.createElement('a');
+        link.download = `${document.getElementById('inputName').value}_carte.png`;
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+      });
+    }
+
+    // Partager directement (Web Share API Mobile)
+    async function shareCard() {
+      const canvas = await generateCardCanvas();
+      canvas.toBlob(async (blob) => {
+        const file = new File([blob], `${document.getElementById('inputName').value}_carte.png`, { type: 'image/png' });
+
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          try {
+            await navigator.share({
+              files: [file],
+              title: 'Ma Carte de Héros Anime',
+              text: 'Regarde la carte que je viens de créer !'
+            });
+          } catch (err) {
+            console.log('Partage annulé ou non pris en charge.');
+          }
+        } else {
+          // Si le partage direct n'est pas supporté (ex: sur navigateur PC), on bascule sur le téléchargement
+          downloadCard();
+        }
+      }, 'image/png');
+    }
+
+    // Initialisation
+    updateCard();
+  </script>
+</body>
+  </html>
+  
